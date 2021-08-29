@@ -9,6 +9,7 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -139,6 +140,8 @@ func binaryImage(m image.Image, w int, h int) [][]bool {
 		dy = 1
 	}
 	result := make([][]bool, 0, w)
+	var wg sync.WaitGroup
+	wg.Add(w)
 	for x := 0; x < w; x++ {
 		result = append(result, make([]bool, h))
 		go func(x int) {
@@ -146,8 +149,10 @@ func binaryImage(m image.Image, w int, h int) [][]bool {
 				_, g, _, _ := m.At(x*dx+(dx-1)/2, y*dy+(dy-1)/2).RGBA()
 				result[x][y] = g>>15 > 0
 			}
+			wg.Done()
 		}(x)
 	}
+	wg.Wait()
 	return result
 }
 

@@ -1,12 +1,23 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"regexp"
 )
 
-const URL string = "https://ac.qq.com/Comic/comicInfo/id/623654"
+const ID string = "623654"
+
+// var ChapterPatternStr = `.*?FILE.\d+[^(href)]*?`
+
+var ChapterPatternStr = ``
+
+type chapter struct {
+	name string
+	url  string
+}
 
 func main() {
 	// cookies, err := Login()
@@ -26,7 +37,26 @@ func main() {
 	// 	log.Fatalln(err.Error())
 	// }
 	// QRcodeFile.Close()
-	getChapterUrl(cookies, URL)
+	if ChapterPatternStr == "" {
+		ChapterPatternStr = ".*?"
+	}
+	chaptersPattern, err := regexp.Compile(
+		fmt.Sprintf(
+			`<a\s+target\s*=\s*"_blank"\s+title\s*=\s*"(%s)"`,
+			ChapterPatternStr,
+		),
+	)
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+	chaptersUrl, err := getChaptersUrl(cookies, ID, chaptersPattern)
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+	for _, chapterUrl := range chaptersUrl {
+		log.Println(chapterUrl)
+	}
+	log.Println(len(chaptersUrl))
 
 	req, err := http.NewRequest(
 		"GET",
