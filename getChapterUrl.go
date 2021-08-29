@@ -2,10 +2,7 @@ package main
 
 import (
 	"io"
-	"log"
 	"net/http"
-	"os"
-	"tencent_comic/regexpPattern"
 )
 
 func getChapterUrl(cookies []*http.Cookie, url string) (err error) {
@@ -28,19 +25,10 @@ func getChapterUrl(cookies []*http.Cookie, url string) (err error) {
 	if err != nil {
 		return err
 	}
-	html := string(body)
-	match := regexpPattern.TitlePattern.FindStringSubmatch(html)
-	if len(match) > 0 {
-		htmlFile, err := os.OpenFile(
-			match[1]+".html",
-			os.O_WRONLY|os.O_TRUNC|os.O_CREATE,
-			0666,
-		)
-		if err != nil {
-			log.Fatalln(err.Error())
-		}
-		htmlFile.Write(body)
-		htmlFile.Close()
+	err = savehtml(body)
+	if err != nil {
+		return err
 	}
+	// html := string(body)
 	return nil
 }
