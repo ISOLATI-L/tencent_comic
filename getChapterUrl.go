@@ -2,6 +2,7 @@ package main
 
 import (
 	"io"
+	"log"
 	"net/http"
 )
 
@@ -21,14 +22,15 @@ func getChapterUrl(cookies []*http.Cookie, url string) (err error) {
 	if err != nil {
 		return err
 	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
+	var html string
+	{
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+		savehtml(body)
+		html = string(body)
 	}
-	err = savehtml(body)
-	if err != nil {
-		return err
-	}
-	// html := string(body)
+	log.Println(html)
 	return nil
 }

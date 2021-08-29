@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"tencent_comic/regexpPattern"
 )
@@ -18,6 +19,8 @@ func savehtml(body []byte) (err error) {
 		}
 		htmlFile.Write(body)
 		htmlFile.Close()
+	} else {
+		return errors.New("can not find title")
 	}
 	return nil
 }

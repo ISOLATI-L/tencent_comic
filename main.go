@@ -49,8 +49,5 @@ func main() {
 		log.Fatalln(err.Error())
 	}
 	// log.Println(string(body))
-	err = savehtml(body)
-	if err != nil {
-		log.Fatalln(err.Error())
-	}
+	savehtml(body)
 }
