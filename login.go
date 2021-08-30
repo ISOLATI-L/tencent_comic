@@ -307,10 +307,10 @@ func getUserInfo(loginedHTML string) error {
 		g_tk,
 		time.Now().UnixNano()/int64(time.Millisecond),
 	)
-	log.Println("p_skey: ", p_skey)
-	fmt.Println()
-	log.Println("reqBody: ", reqBody)
-	fmt.Println()
+	// log.Println("p_skey: ", p_skey)
+	// fmt.Println()
+	// log.Println("reqBody: ", reqBody)
+	// fmt.Println()
 	req, err = http.NewRequest(
 		"POST",
 		"https://graph.qq.com/oauth2.0/authorize",
@@ -324,23 +324,23 @@ func getUserInfo(loginedHTML string) error {
 		return err
 	}
 	location := resp.Header.Get("Location")
-	log.Println("location: ", location)
-	fmt.Println()
+	// log.Println("location: ", location)
+	// fmt.Println()
 	matches = CodePattern.FindStringSubmatch(location)
 	if len(matches) == 0 {
 		return errors.New("can not find code")
 	}
 	code := matches[1]
-	log.Println("code: ", code)
-	fmt.Println()
+	// log.Println("code: ", code)
+	// fmt.Println()
 
 	reqBody = "code=" + code
 	rannum := rand.Float64()
-	log.Println("url: ", fmt.Sprintf(
-		"https://ac.qq.com/User/qqInfo?%f",
-		rannum,
-	))
-	fmt.Println()
+	// log.Println("url: ", fmt.Sprintf(
+	// 	"https://ac.qq.com/User/qqInfo?%f",
+	// 	rannum,
+	// ))
+	// fmt.Println()
 	req, err = http.NewRequest(
 		"POST",
 		fmt.Sprintf(
@@ -353,17 +353,17 @@ func getUserInfo(loginedHTML string) error {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	resp, err = client.Do(req)
+	_, err = client.Do(req)
 	if err != nil {
 		return err
 	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	html := string(body)
-	log.Println(html)
-	fmt.Println()
+	// body, err := io.ReadAll(resp.Body)
+	// if err != nil {
+	// 	return err
+	// }
+	// html := string(body)
+	// log.Println(html)
+	// fmt.Println()
 	return nil
 }
 

@@ -1,24 +1,27 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/Unknwon/goconfig"
 )
 
+type config struct {
+	id             string
+	chapterPattern string
+	interval       int
+}
+
 const (
-	DEFAULT_DISPLAYERHRIGHT uint   = 108
-	DEFAULT_SLICEWIDTH      uint   = 96
-	DEFAULT_SLICEHEIGHT     uint   = 100
-	DEFAULT_OFFSETX         int    = 0
-	DEFAULT_OFFSETY         int    = 0
-	DEFAULT_MAXGOROUTINENUM uint   = 20
-	DEFAULT_NEEDELECTRIC    uint8  = 0
-	DEFAULT_OUTPUT          string = "output"
+	DEFAULT_ID             string = "623654"
+	DEFAULT_CHAPTERPATTERN string = ".*?"
+	DEFAULT_INTERVAL       int    = 1000
 )
 
-func loadConfig() config {
+func loadConfig() (cfg config) {
 	var configFile *goconfig.ConfigFile
 	var err error
 	configFile, err = goconfig.LoadConfigFile("config.ini")
@@ -37,39 +40,63 @@ func loadConfig() config {
 		}
 	}()
 
-	var result config
-
 	id, err := configFile.GetValue(goconfig.DEFAULT_SECTION, "id")
 	if err != nil || id == "" {
 		configFile.SetValue(
 			goconfig.DEFAULT_SECTION,
 			"id",
-			"623654",
+			DEFAULT_ID,
 		)
 		configFile.SetKeyComments(
 			goconfig.DEFAULT_SECTION,
 			"id",
-			"id为漫画id，如《名侦探柯南》的链接为https://ac.qq.com/Comic/comicInfo/id/623654，id即为623654",
+			fmt.Sprintf(
+				"id为漫画id，如《名侦探柯南》的链接为https://ac.qq.com/Comic/comicInfo/id/%s，id即为%s",
+				DEFAULT_ID, DEFAULT_ID,
+			),
 		)
-		id = "623654"
+		id = DEFAULT_ID
 	}
-	result.id = id
+	cfg.id = id
 
 	chapterPattern, err := configFile.GetValue(goconfig.DEFAULT_SECTION, "chapterPattern")
-	if err != nil || id == "" {
+	if err != nil || chapterPattern == "" {
 		configFile.SetValue(
 			goconfig.DEFAULT_SECTION,
 			"chapterPattern",
-			".*?",
+			DEFAULT_CHAPTERPATTERN,
 		)
 		configFile.SetKeyComments(
 			goconfig.DEFAULT_SECTION,
 			"chapterPattern",
-			"chapterPattern为检索章节的正则表达式，默认为.*?（即检索所有章节）",
+			fmt.Sprintf(
+				"chapterPattern为检索章节的正则表达式，默认为%s（即检索所有章节）",
+				DEFAULT_CHAPTERPATTERN,
+			),
 		)
-		chapterPattern = ".*?"
+		chapterPattern = DEFAULT_CHAPTERPATTERN
 	}
-	result.chapterPattern = chapterPattern
+	cfg.chapterPattern = chapterPattern
 
-	return result
+	intervalStr, err1 := configFile.GetValue(goconfig.DEFAULT_SECTION, "interval")
+	interval, err2 := strconv.Atoi(intervalStr)
+	if err1 != nil || err2 != nil || interval < 0 {
+		configFile.SetValue(
+			goconfig.DEFAULT_SECTION,
+			"interval",
+			fmt.Sprint(DEFAULT_INTERVAL),
+		)
+		configFile.SetKeyComments(
+			goconfig.DEFAULT_SECTION,
+			"interval",
+			fmt.Sprintf(
+				"interval为下载每张图片的间隔，单位为毫秒，默认为%d毫秒",
+				DEFAULT_INTERVAL,
+			),
+		)
+		interval = DEFAULT_INTERVAL
+	}
+	cfg.interval = interval
+
+	return cfg
 }

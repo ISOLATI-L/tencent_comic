@@ -28,12 +28,12 @@ func init() {
 	}
 }
 
-func getChaptersUrl(cfg config) (chaptersUrl []chapter, err error) {
+func getChaptersUrl() (chaptersUrl []chapter, err error) {
 	req, err := http.NewRequest(
 		"GET",
 		fmt.Sprintf(
 			"https://ac.qq.com/Comic/comicInfo/id/%s",
-			cfg.id,
+			CFG.id,
 		),
 		nil,
 	)
@@ -73,7 +73,7 @@ func getChaptersUrl(cfg config) (chaptersUrl []chapter, err error) {
 	chaptersPattern, err := regexp.Compile(
 		fmt.Sprintf(
 			`<a\s+target\s*=\s*"_blank"\s+title\s*=\s*"(%s)"\s*href=`,
-			cfg.chapterPattern,
+			CFG.chapterPattern,
 		),
 	)
 	if err != nil {
@@ -84,7 +84,7 @@ func getChaptersUrl(cfg config) (chaptersUrl []chapter, err error) {
 	chapterPattern, err := regexp.Compile(
 		fmt.Sprintf(
 			`"(/ComicView/index/id/%s/cid/\d*?)"`,
-			cfg.id,
+			CFG.id,
 		),
 	)
 	if err != nil {

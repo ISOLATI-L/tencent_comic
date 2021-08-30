@@ -55,14 +55,14 @@ func init() {
 	}
 }
 
-func downloadComic(url string) error {
+func getImgUrl(url string) (string, error) {
 	req, err := http.NewRequest(
 		"GET",
 		url,
 		nil,
 	)
 	if err != nil {
-		return err
+		return "", err
 	}
 	// for _, cookie := range cookies {
 	// 	// if len(cookie.Value) > 0 && cookie.Value != "/" && cookie.Value != "/;" && cookie.Value != ";" {
@@ -73,14 +73,14 @@ func downloadComic(url string) error {
 	// fmt.Println()
 	resp, err := client.Do(req)
 	if err != nil {
-		return err
+		return "", err
 	}
 	// cookies = resp.Cookies()
 	var html string
 	{
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			return err
+			return "", err
 		}
 		html = string(body)
 	}
@@ -102,7 +102,7 @@ func downloadComic(url string) error {
 			0777,
 		)
 		if err != nil {
-			return err
+			return "", err
 		}
 		jsFile.Write([]byte("console.log(" + nonces + ")"))
 		jsFile.Close()
@@ -110,7 +110,7 @@ func downloadComic(url string) error {
 		if err != nil {
 			log.Println("nonces: ", nonces)
 			fmt.Println()
-			return err
+			return "", err
 		}
 		nonce = string(output)
 	}
@@ -118,11 +118,11 @@ func downloadComic(url string) error {
 	// log.Println("nonce: ", nonce)
 	info_str, err := decode(data, nonce)
 	if err != nil {
-		return err
+		return "", err
 	}
-	log.Println(info_str)
-	fmt.Println()
-	return nil
+	// log.Println(info_str)
+	// fmt.Println()
+	return info_str, err
 }
 
 const _keyStr string = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/="
@@ -163,7 +163,7 @@ func decode(data string, nonce string) (string, error) {
 		b = b<<2 | d>>4
 		d = (d&15)<<4 | f>>2
 		h = (f&3)<<6 | g
-		a += string(rune(b))
+		a += string(rune(b)) // 直接string(b)也完全一样，但有警告看着很烦
 		if f != 64 {
 			a += string(rune(d))
 		}

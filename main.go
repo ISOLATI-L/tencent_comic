@@ -1,17 +1,11 @@
 package main
 
 import (
-	"io"
 	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"time"
 )
-
-type config struct {
-	id             string
-	chapterPattern string
-}
 
 type chapter struct {
 	name string
@@ -39,13 +33,9 @@ var CFG config
 
 func main() {
 	CFG = loadConfig()
-	// chapterPatternStr: `.*?FILE.\d+[^(href)]*?`,
+	// chapterPatternStr: `.*?FILE.((104[3-9])|(10[5-9][0-9]))[^(href)]*?`,
 
 	err := Login()
-	if err != nil {
-		log.Fatalln(err.Error())
-	}
-	err = downloadComic("https://ac.qq.com/ComicView/index/id/623654/cid/1060")
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
@@ -62,33 +52,17 @@ func main() {
 	// }
 	// QRcodeFile.Close()
 
-	// chaptersUrl, err := getChaptersUrl(cookies, cfg)
+	// err = getImgUrl("https://ac.qq.com/ComicView/index/id/623654/cid/1060")
 	// if err != nil {
 	// 	log.Fatalln(err.Error())
 	// }
-	// for _, chapterUrl := range chaptersUrl {
-	// 	log.Println(chapterUrl)
-	// }
-	// log.Println(len(chaptersUrl))
 
-	req, err := http.NewRequest(
-		"POST",
-		"https://ac.qq.com/ComicView/index/id/623654/cid/1060",
-		nil,
-	)
+	chaptersUrl, err := getChaptersUrl()
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
-	// for _, cookie := range cookies {
-	// 	req.AddCookie(cookie)
-	// }
-	resp, err := client.Do(req)
+	err = downloadCommic(chaptersUrl)
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Fatalln(err.Error())
-	}
-	savehtml(body)
 }
