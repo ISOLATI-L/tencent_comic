@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/cookiejar"
@@ -60,6 +61,9 @@ func main() {
 	chaptersUrl, err := getChaptersUrl()
 	if err != nil {
 		log.Fatalln(err.Error())
+	}
+	for _, chapter := range chaptersUrl {
+		fmt.Println(chapter.name)
 	}
 	err = downloadCommic(chaptersUrl)
 	if err != nil {
