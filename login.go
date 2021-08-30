@@ -2,27 +2,69 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"image"
 	"image/png"
 	"io"
+	"log"
 	"math/rand"
 	"net/http"
+	"net/http/cookiejar"
+	"regexp"
+	"strings"
 	"sync"
 	"time"
 )
 
 var client *http.Client
+var UrlPattern *regexp.Regexp
+var ClientIdPattern *regexp.Regexp
 
 func init() {
+	var err error
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
 	client = &http.Client{
 		Timeout: 10 * time.Second,
+		Jar:     jar,
+	}
+	UrlPattern, err = regexp.Compile(
+		`'(https.*?)'`,
+	)
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+	ClientIdPattern, err = regexp.Compile(
+		`pt_3rd_aid=(\d+)'`,
+	)
+	if err != nil {
+		log.Fatalln(err.Error())
 	}
 }
 
 func Get_login_sig() (setCookies []*http.Cookie, pt_login_sig string, err error) {
+	// req, err := http.NewRequest(
+	// 	"GET",
+	// 	fmt.Sprintf(
+	// 		"https://ac.qq.com/Comic/comicInfo/id/%s",
+	// 		CFG.id,
+	// 	),
+	// 	nil,
+	// )
+	// if err != nil {
+	// 	return nil, "", err
+	// }
+	// resp, err := client.Do(req)
+	// if err != nil {
+	// 	return nil, "", err
+	// }
+	// setCookies = resp.Cookies()
+	// log.Println(setCookies)
+	// log.Println()
+
 	req, err := http.NewRequest(
 		"GET",
 		"https://xui.ptlogin2.qq.com/cgi-bin/xlogin?appid=716027609&login_text=授权并登录&hide_title_bar=1&hide_border=1&target=self&s_url=https://graph.qq.com/oauth2.0/login_jump&pt_3rd_aid=101483258&pt_feedback_link=https://support.qq.com/products/77942?customInfo=.appid101483258",
@@ -30,6 +72,11 @@ func Get_login_sig() (setCookies []*http.Cookie, pt_login_sig string, err error)
 	)
 	if err != nil {
 		return nil, "", err
+	}
+	for _, cookie := range setCookies {
+		// if len(cookie.Value) > 0 {
+		req.AddCookie(cookie)
+		// }
 	}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -67,7 +114,9 @@ func ShowQRcode(cookies []*http.Cookie) (setCookies []*http.Cookie, ptqrtoken ui
 		return nil, 0, err
 	}
 	for _, cookie := range cookies {
+		// if len(cookie.Value) > 0 {
 		req.AddCookie(cookie)
+		// }
 	}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -168,9 +217,8 @@ func Login() (setCookies []*http.Cookie, err error) {
 		if err != nil {
 			return nil, err
 		}
-		var ptqrtoken uint64
 		for {
-			cookies, ptqrtoken, err = ShowQRcode(cookies)
+			cookies, ptqrtoken, err := ShowQRcode(cookies)
 			if err != nil {
 				break
 			}
@@ -179,9 +227,8 @@ func Login() (setCookies []*http.Cookie, err error) {
 			// log.Println("ptqrtoken: ", ptqrtoken)
 			// log.Println("action: ", action)
 			textbackground(0x04)
-			fmt.Print("请扫码登陆")
+			fmt.Println("请扫码登陆")
 			resettextbackground()
-			fmt.Println("(1分钟后刷新)")
 			var req *http.Request
 			req, err = http.NewRequest(
 				"GET",
@@ -197,34 +244,46 @@ func Login() (setCookies []*http.Cookie, err error) {
 				break
 			}
 			for _, cookie := range cookies {
+				// if len(cookie.Value) > 0 {
 				req.AddCookie(cookie)
+				// }
 			}
 			ch := make(chan error)
-			ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 			go func() {
 				for {
-					select {
-					case <-ctx.Done():
+					resp, err := client.Do(req)
+					if err != nil {
+						ch <- err
+						return
+					}
+					cookies = resp.Cookies()
+					body, err := io.ReadAll(resp.Body)
+					if err != nil {
+						ch <- err
+						return
+					}
+					html := string(body)
+					// log.Println(html)
+					if strings.Contains(html, "登录成功") {
+						// cookies = append(cookies, &http.Cookie{
+						// 	Name:  "ptui_loginuin",
+						// 	Value: "1195521688",
+						// })
+						setCookies = cookies
+						err = getUserInfo(cookies, html)
+						ch <- err
+						return
+					} else if strings.Contains(html, "二维码已经失效") {
+						textbackground(0x04)
+						fmt.Println("二维码已经失效")
+						resettextbackground()
 						ch <- errors.New("time out")
 						return
-					default:
-						resp, err := client.Do(req)
-						if err != nil {
-							ch <- err
-							return
-						}
-						tmpSetCookies := resp.Cookies()
-						if len(tmpSetCookies) > 0 {
-							setCookies = tmpSetCookies
-							ch <- nil
-							return
-						}
 					}
 					time.Sleep(1 * time.Second)
 				}
 			}()
 			err = <-ch
-			cancel()
 			if err == nil {
 				break
 			}
@@ -233,5 +292,103 @@ func Login() (setCookies []*http.Cookie, err error) {
 			break
 		}
 	}
+	setCookies = append(setCookies, &http.Cookie{
+		Name:  "ui",
+		Value: "C783C362-54B4-4154-9DDF-4BB1757CAE80",
+	})
+	setCookies = append(setCookies, &http.Cookie{
+		Name:  "ptui_loginuin",
+		Value: "1195521688",
+	})
 	return setCookies, nil
+}
+
+func getUserInfo(setCookies []*http.Cookie, loginedHTML string) error {
+	matches := UrlPattern.FindStringSubmatch(loginedHTML)
+	if len(matches) == 0 {
+		return errors.New("can not find url")
+	}
+	url := matches[1]
+	req, err := http.NewRequest(
+		"GET",
+		url,
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+	// req.Header.Set("Upgrade-Insecure-Requests", "1")
+	for _, cookie := range setCookies {
+		// if len(cookie.Value) > 0 {
+		req.AddCookie(cookie)
+		// }
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	cookies := resp.Cookies()
+	log.Println("url cookies", cookies)
+	fmt.Println()
+	var p_skey string
+	for _, cookie := range cookies {
+		if cookie.Name == "p_skey" && len(cookie.Value) > 0 {
+			p_skey = cookie.Value
+			break
+		}
+	}
+
+	matches = ClientIdPattern.FindStringSubmatch(loginedHTML)
+	if len(matches) == 0 {
+		return errors.New("can not find client id")
+	}
+	clientId := matches[1]
+	g_tk := getGTK(p_skey)
+	reqBody := fmt.Sprintf(
+		"response_type=code&client_id=%s&redirect_uri=https://ac.qq.com/loginSuccess.html?url=https://ac.qq.com/Comic/comicInfo/id/%s?auth=1&scope=&state=&switch=&from_ptlogin=1&src=1&update_auth=1&openapi=80901010&g_tk=%d&auth_time=%d&ui=C783C362-54B4-4154-9DDF-4BB1757CAE80",
+		clientId,
+		CFG.id,
+		g_tk,
+		time.Now().UnixNano()/int64(time.Millisecond),
+	)
+	log.Println("p_skey: ", p_skey)
+	fmt.Println()
+	// log.Println("reqBody: ", reqBody)
+	// fmt.Println()
+	req, err = http.NewRequest(
+		"POST",
+		"https://graph.qq.com/oauth2.0/authorize",
+		bytes.NewReader([]byte(reqBody)),
+	)
+	if err != nil {
+		return err
+	}
+	for _, cookie := range setCookies {
+		// if len(cookie.Value) > 0 {
+		req.AddCookie(cookie)
+		// }
+	}
+	resp, err = client.Do(req)
+	if err != nil {
+		return err
+	}
+	// body, err := io.ReadAll(resp.Body)
+	// if err != nil {
+	// 	return err
+	// }
+	// html := string(body)
+	// log.Println(html)
+	// fmt.Println()
+	log.Println(resp.Header)
+	fmt.Println()
+	return nil
+}
+
+func getGTK(skey string) int {
+	var hash = 5381
+	length := len(skey)
+	for i := 0; i < length; i++ {
+		hash += (hash << 5) + int(byte(skey[i]))
+	}
+	return hash & 0x7fffffff
 }

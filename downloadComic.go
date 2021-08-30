@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -64,8 +65,14 @@ func downloadComic(cookies []*http.Cookie, url string) error {
 		return err
 	}
 	for _, cookie := range cookies {
+		// if len(cookie.Value) > 0 {
 		req.AddCookie(cookie)
+		// }
 	}
+	log.Println(cookies)
+	fmt.Println()
+	log.Println(req.Cookies())
+	fmt.Println()
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
@@ -79,10 +86,6 @@ func downloadComic(cookies []*http.Cookie, url string) error {
 		}
 		html = string(body)
 	}
-	// log.Println("html: ", html)
-	// "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/="
-	// "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-	// "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
 	matches := DATAPattern.FindStringSubmatch(html)
 	var data string
 	if len(matches) > 0 {
@@ -92,6 +95,9 @@ func downloadComic(cookies []*http.Cookie, url string) error {
 	var nonce string
 	if len(matches) > 0 {
 		nonces := matches2[len(matches)-1][1]
+		nonces = strings.Replace(nonces, "!document.children", "false", -1)
+		nonces = strings.Replace(nonces, "!window.Array", "false", -1)
+		nonces = strings.Replace(nonces, "!document.getElementsByTagName('html')", "false", -1)
 		jsFile, err := os.OpenFile(
 			"command.js",
 			os.O_WRONLY|os.O_TRUNC|os.O_CREATE,
@@ -104,6 +110,8 @@ func downloadComic(cookies []*http.Cookie, url string) error {
 		jsFile.Close()
 		output, err := exec.Command("node", "command.js").Output()
 		if err != nil {
+			log.Println("nonces: ", nonces)
+			fmt.Println()
 			return err
 		}
 		nonce = string(output)
@@ -115,28 +123,7 @@ func downloadComic(cookies []*http.Cookie, url string) error {
 		return err
 	}
 	log.Println(info_str)
-
-	// req, err = http.NewRequest(
-	// 	"POST",
-	// 	"https://ac.qq.com/ComicView/getNextChapterPicture?id=623654&cid=1060",
-	// 	nil,
-	// )
-	// if err != nil {
-	// return err
-	// }
-	// for _, cookie := range cookies {
-	// 	req.AddCookie(cookie)
-	// }
-	// resp, err = client.Do(req)
-	// if err != nil {
-	// return err
-	// }
-
-	// body, err := io.ReadAll(resp.Body)
-	// if err != nil {
-	// return err
-	// }
-	// log.Println(string(body))
+	fmt.Println()
 	return nil
 }
 
@@ -146,16 +133,16 @@ func decode(data string, nonce string) (string, error) {
 	var err error
 	T := data
 	N := nonce
-	var locate int
+	var locate uint64
 	matches := DecodePattern1.FindAllStringSubmatch(N, -1)
 	for length := len(matches) - 1; length >= 0; length-- {
-		locate, err = strconv.Atoi(matches[length][1])
+		locate, err = strconv.ParseUint(matches[length][1], 10, 64)
 		if err != nil {
 			return "", err
 		}
 		locate &= 255
 		str := DecodePattern2.ReplaceAllString(matches[length][0], "")
-		T = T[:locate] + T[(locate+len(str)):]
+		T = T[:locate] + T[(int(locate)+len(str)):]
 	}
 	c := T
 	a := ""
@@ -169,18 +156,12 @@ func decode(data string, nonce string) (string, error) {
 	for e < len(c) {
 		b = strings.Index(_keyStr, c[e:e+1])
 		e++
-		if e < len(c) {
-			d = strings.Index(_keyStr, c[e:e+1])
-			e++
-		}
-		if e < len(c) {
-			f = strings.Index(_keyStr, c[e:e+1])
-			e++
-		}
-		if e < len(c) {
-			g = strings.Index(_keyStr, c[e:e+1])
-			e++
-		}
+		d = strings.Index(_keyStr, c[e:e+1])
+		e++
+		f = strings.Index(_keyStr, c[e:e+1])
+		e++
+		g = strings.Index(_keyStr, c[e:e+1])
+		e++
 		b = b<<2 | d>>4
 		d = (d&15)<<4 | f>>2
 		h = (f&3)<<6 | g

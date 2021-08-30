@@ -16,16 +16,20 @@ type chapter struct {
 	url  string
 }
 
+var CFG config
+
 func main() {
-	// cfg := loadConfig()
+	CFG = loadConfig()
 	// chapterPatternStr: `.*?FILE.\d+[^(href)]*?`,
 
-	// cookies, err := Login()
-	// if err != nil {
-	// 	log.Fatalln(err.Error())
-	// }
-	cookies := make([]*http.Cookie, 0)
-	err := downloadComic(cookies, "https://ac.qq.com/ComicView/index/id/623654/cid/1060")
+	var err error
+	cookies, err := Login()
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+	// log.Println(cookies)
+	// cookies := make([]*http.Cookie, 0)
+	err = downloadComic(cookies, "https://ac.qq.com/ComicView/index/id/623654/cid/1060")
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
