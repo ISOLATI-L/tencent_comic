@@ -55,7 +55,7 @@ func init() {
 	}
 }
 
-func downloadComic(cookies []*http.Cookie, url string) error {
+func downloadComic(url string) error {
 	req, err := http.NewRequest(
 		"GET",
 		url,
@@ -64,15 +64,13 @@ func downloadComic(cookies []*http.Cookie, url string) error {
 	if err != nil {
 		return err
 	}
-	for _, cookie := range cookies {
-		// if len(cookie.Value) > 0 {
-		req.AddCookie(cookie)
-		// }
-	}
-	log.Println(cookies)
-	fmt.Println()
-	log.Println(req.Cookies())
-	fmt.Println()
+	// for _, cookie := range cookies {
+	// 	// if len(cookie.Value) > 0 && cookie.Value != "/" && cookie.Value != "/;" && cookie.Value != ";" {
+	// 	req.AddCookie(cookie)
+	// 	// }
+	// }
+	// log.Println(cookies)
+	// fmt.Println()
 	resp, err := client.Do(req)
 	if err != nil {
 		return err

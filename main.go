@@ -4,6 +4,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/http/cookiejar"
+	"time"
 )
 
 type config struct {
@@ -16,20 +18,34 @@ type chapter struct {
 	url  string
 }
 
+var client *http.Client
+
+func init() {
+	var err error
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+	client = &http.Client{
+		Timeout: 10 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse // 不进入重定向
+		},
+		Jar: jar,
+	}
+}
+
 var CFG config
 
 func main() {
 	CFG = loadConfig()
 	// chapterPatternStr: `.*?FILE.\d+[^(href)]*?`,
 
-	var err error
-	cookies, err := Login()
+	err := Login()
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
-	// log.Println(cookies)
-	// cookies := make([]*http.Cookie, 0)
-	err = downloadComic(cookies, "https://ac.qq.com/ComicView/index/id/623654/cid/1060")
+	err = downloadComic("https://ac.qq.com/ComicView/index/id/623654/cid/1060")
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
@@ -63,9 +79,9 @@ func main() {
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
-	for _, cookie := range cookies {
-		req.AddCookie(cookie)
-	}
+	// for _, cookie := range cookies {
+	// 	req.AddCookie(cookie)
+	// }
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Fatalln(err.Error())

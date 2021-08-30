@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"log"
 	"os"
 	"regexp"
@@ -34,7 +33,16 @@ func savehtml(body []byte) (err error) {
 			htmlFile.Write(body)
 			htmlFile.Close()
 		} else {
-			return errors.New("can not find title")
+			htmlFile, err := os.OpenFile(
+				"notitle.html",
+				os.O_WRONLY|os.O_TRUNC|os.O_CREATE,
+				0666,
+			)
+			if err != nil {
+				return err
+			}
+			htmlFile.Write(body)
+			htmlFile.Close()
 		}
 	}
 	return nil

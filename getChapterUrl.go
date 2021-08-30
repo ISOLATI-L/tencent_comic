@@ -28,7 +28,7 @@ func init() {
 	}
 }
 
-func getChaptersUrl(cookies []*http.Cookie, cfg config) (chaptersUrl []chapter, err error) {
+func getChaptersUrl(cfg config) (chaptersUrl []chapter, err error) {
 	req, err := http.NewRequest(
 		"GET",
 		fmt.Sprintf(
@@ -40,9 +40,11 @@ func getChaptersUrl(cookies []*http.Cookie, cfg config) (chaptersUrl []chapter, 
 	if err != nil {
 		return nil, err
 	}
-	for _, cookie := range cookies {
-		req.AddCookie(cookie)
-	}
+	// for _, cookie := range cookies {
+	// 	// if len(cookie.Value) > 0 && cookie.Value != "/" && cookie.Value != "/;" && cookie.Value != ";" {
+	// 	req.AddCookie(cookie)
+	// 	// }
+	// }
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err

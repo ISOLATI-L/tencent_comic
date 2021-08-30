@@ -10,27 +10,20 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
-	"net/http/cookiejar"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
 )
 
-var client *http.Client
 var UrlPattern *regexp.Regexp
 var ClientIdPattern *regexp.Regexp
+var LoginTypePattern *regexp.Regexp
+var UinPattern *regexp.Regexp
+var CodePattern *regexp.Regexp
 
 func init() {
 	var err error
-	jar, err := cookiejar.New(nil)
-	if err != nil {
-		log.Fatalln(err.Error())
-	}
-	client = &http.Client{
-		Timeout: 10 * time.Second,
-		Jar:     jar,
-	}
 	UrlPattern, err = regexp.Compile(
 		`'(https.*?)'`,
 	)
@@ -43,49 +36,43 @@ func init() {
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
+	LoginTypePattern, err = regexp.Compile(
+		`pt_login_type=(\d+)`,
+	)
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+	UinPattern, err = regexp.Compile(
+		`uin=(\d+)`,
+	)
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+	CodePattern, err = regexp.Compile(
+		`code=(.+?)$`,
+	)
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
 }
 
-func Get_login_sig() (setCookies []*http.Cookie, pt_login_sig string, err error) {
-	// req, err := http.NewRequest(
-	// 	"GET",
-	// 	fmt.Sprintf(
-	// 		"https://ac.qq.com/Comic/comicInfo/id/%s",
-	// 		CFG.id,
-	// 	),
-	// 	nil,
-	// )
-	// if err != nil {
-	// 	return nil, "", err
-	// }
-	// resp, err := client.Do(req)
-	// if err != nil {
-	// 	return nil, "", err
-	// }
-	// setCookies = resp.Cookies()
-	// log.Println(setCookies)
-	// log.Println()
-
+func Get_login_sig() (pt_login_sig string, err error) {
 	req, err := http.NewRequest(
 		"GET",
 		"https://xui.ptlogin2.qq.com/cgi-bin/xlogin?appid=716027609&login_text=授权并登录&hide_title_bar=1&hide_border=1&target=self&s_url=https://graph.qq.com/oauth2.0/login_jump&pt_3rd_aid=101483258&pt_feedback_link=https://support.qq.com/products/77942?customInfo=.appid101483258",
 		nil,
 	)
 	if err != nil {
-		return nil, "", err
-	}
-	for _, cookie := range setCookies {
-		// if len(cookie.Value) > 0 {
-		req.AddCookie(cookie)
-		// }
+		return "", err
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, "", err
+		return "", err
 	}
 
 	found := false
-	setCookies = resp.Cookies()
-	for _, cookie := range setCookies {
+	cookies := getSetCookies(resp)
+	for _, cookie := range cookies {
 		if cookie.Name == "pt_login_sig" {
 			found = true
 			pt_login_sig = cookie.Value
@@ -93,14 +80,14 @@ func Get_login_sig() (setCookies []*http.Cookie, pt_login_sig string, err error)
 		}
 	}
 	if !found {
-		return nil, "", errors.New("can not find pt_login_sig")
+		return "", errors.New("can not find pt_login_sig")
 	}
-	return setCookies, pt_login_sig, nil
+	return pt_login_sig, nil
 }
 
 const QR_SIZE int = 37
 
-func ShowQRcode(cookies []*http.Cookie) (setCookies []*http.Cookie, ptqrtoken uint64, err error) {
+func ShowQRcode() (ptqrtoken uint64, err error) {
 	randFloat := rand.Float64()
 	req, err := http.NewRequest(
 		"GET",
@@ -111,27 +98,22 @@ func ShowQRcode(cookies []*http.Cookie) (setCookies []*http.Cookie, ptqrtoken ui
 		nil,
 	)
 	if err != nil {
-		return nil, 0, err
-	}
-	for _, cookie := range cookies {
-		// if len(cookie.Value) > 0 {
-		req.AddCookie(cookie)
-		// }
+		return 0, err
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, 0, err
+		return 0, err
 	}
 
 	QRcode, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, 0, err
+		return 0, err
 	}
 
 	reader := bytes.NewReader(QRcode)
 	image, err := png.Decode(reader)
 	if err != nil {
-		return nil, 0, err
+		return 0, err
 	}
 	binary := binaryImage(image, QR_SIZE, QR_SIZE)
 	for y := 0; y < QR_SIZE; y++ {
@@ -150,11 +132,10 @@ func ShowQRcode(cookies []*http.Cookie) (setCookies []*http.Cookie, ptqrtoken ui
 	}
 	resettextbackground()
 
-	// log.Println(resp.Header.Get("Strict-Transport-Security"))
 	found := false
-	setCookies = resp.Cookies()
+	cookies := getSetCookies(resp)
 	var qrsig string
-	for _, cookie := range setCookies {
+	for _, cookie := range cookies {
 		if cookie.Name == "qrsig" {
 			found = true
 			qrsig = cookie.Value
@@ -162,16 +143,14 @@ func ShowQRcode(cookies []*http.Cookie) (setCookies []*http.Cookie, ptqrtoken ui
 		}
 	}
 	if !found {
-		return nil, 0, errors.New("can not find qrsig")
+		return 0, errors.New("can not find qrsig")
 	}
-	// log.Println(qrsig)
 	for _, c := range []byte(qrsig) {
 		ptqrtoken += ptqrtoken<<5 + uint64(c)
 	}
 	ptqrtoken &= 0x7FFFFFFF
-	// log.Println(ptqrtoken)
 
-	return setCookies, ptqrtoken, nil
+	return ptqrtoken, nil
 }
 
 func binaryImage(m image.Image, w int, h int) [][]bool {
@@ -211,14 +190,14 @@ func GetAction() (action string) {
 	return action
 }
 
-func Login() (setCookies []*http.Cookie, err error) {
+func Login() (err error) {
 	for {
-		cookies, login_sig, err := Get_login_sig()
+		login_sig, err := Get_login_sig()
 		if err != nil {
-			return nil, err
+			return err
 		}
 		for {
-			cookies, ptqrtoken, err := ShowQRcode(cookies)
+			ptqrtoken, err := ShowQRcode()
 			if err != nil {
 				break
 			}
@@ -243,11 +222,6 @@ func Login() (setCookies []*http.Cookie, err error) {
 			if err != nil {
 				break
 			}
-			for _, cookie := range cookies {
-				// if len(cookie.Value) > 0 {
-				req.AddCookie(cookie)
-				// }
-			}
 			ch := make(chan error)
 			go func() {
 				for {
@@ -256,7 +230,6 @@ func Login() (setCookies []*http.Cookie, err error) {
 						ch <- err
 						return
 					}
-					cookies = resp.Cookies()
 					body, err := io.ReadAll(resp.Body)
 					if err != nil {
 						ch <- err
@@ -265,12 +238,11 @@ func Login() (setCookies []*http.Cookie, err error) {
 					html := string(body)
 					// log.Println(html)
 					if strings.Contains(html, "登录成功") {
-						// cookies = append(cookies, &http.Cookie{
-						// 	Name:  "ptui_loginuin",
-						// 	Value: "1195521688",
-						// })
-						setCookies = cookies
-						err = getUserInfo(cookies, html)
+						matches := LoginTypePattern.FindStringSubmatch(html)
+						if len(matches) == 0 {
+							ch <- errors.New("can not find pt_login_type")
+						}
+						err = getUserInfo(html)
 						ch <- err
 						return
 					} else if strings.Contains(html, "二维码已经失效") {
@@ -292,18 +264,10 @@ func Login() (setCookies []*http.Cookie, err error) {
 			break
 		}
 	}
-	setCookies = append(setCookies, &http.Cookie{
-		Name:  "ui",
-		Value: "C783C362-54B4-4154-9DDF-4BB1757CAE80",
-	})
-	setCookies = append(setCookies, &http.Cookie{
-		Name:  "ptui_loginuin",
-		Value: "1195521688",
-	})
-	return setCookies, nil
+	return nil
 }
 
-func getUserInfo(setCookies []*http.Cookie, loginedHTML string) error {
+func getUserInfo(loginedHTML string) error {
 	matches := UrlPattern.FindStringSubmatch(loginedHTML)
 	if len(matches) == 0 {
 		return errors.New("can not find url")
@@ -317,19 +281,11 @@ func getUserInfo(setCookies []*http.Cookie, loginedHTML string) error {
 	if err != nil {
 		return err
 	}
-	// req.Header.Set("Upgrade-Insecure-Requests", "1")
-	for _, cookie := range setCookies {
-		// if len(cookie.Value) > 0 {
-		req.AddCookie(cookie)
-		// }
-	}
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
-	cookies := resp.Cookies()
-	log.Println("url cookies", cookies)
-	fmt.Println()
+	cookies := getSetCookies(resp)
 	var p_skey string
 	for _, cookie := range cookies {
 		if cookie.Name == "p_skey" && len(cookie.Value) > 0 {
@@ -353,8 +309,8 @@ func getUserInfo(setCookies []*http.Cookie, loginedHTML string) error {
 	)
 	log.Println("p_skey: ", p_skey)
 	fmt.Println()
-	// log.Println("reqBody: ", reqBody)
-	// fmt.Println()
+	log.Println("reqBody: ", reqBody)
+	fmt.Println()
 	req, err = http.NewRequest(
 		"POST",
 		"https://graph.qq.com/oauth2.0/authorize",
@@ -363,23 +319,50 @@ func getUserInfo(setCookies []*http.Cookie, loginedHTML string) error {
 	if err != nil {
 		return err
 	}
-	for _, cookie := range setCookies {
-		// if len(cookie.Value) > 0 {
-		req.AddCookie(cookie)
-		// }
-	}
 	resp, err = client.Do(req)
 	if err != nil {
 		return err
 	}
-	// body, err := io.ReadAll(resp.Body)
-	// if err != nil {
-	// 	return err
-	// }
-	// html := string(body)
-	// log.Println(html)
-	// fmt.Println()
-	log.Println(resp.Header)
+	location := resp.Header.Get("Location")
+	log.Println("location: ", location)
+	fmt.Println()
+	matches = CodePattern.FindStringSubmatch(location)
+	if len(matches) == 0 {
+		return errors.New("can not find code")
+	}
+	code := matches[1]
+	log.Println("code: ", code)
+	fmt.Println()
+
+	reqBody = "code=" + code
+	rannum := rand.Float64()
+	log.Println("url: ", fmt.Sprintf(
+		"https://ac.qq.com/User/qqInfo?%f",
+		rannum,
+	))
+	fmt.Println()
+	req, err = http.NewRequest(
+		"POST",
+		fmt.Sprintf(
+			"https://ac.qq.com/User/qqInfo?%f",
+			rannum,
+		),
+		bytes.NewReader([]byte(reqBody)),
+	)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err = client.Do(req)
+	if err != nil {
+		return err
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	html := string(body)
+	log.Println(html)
 	fmt.Println()
 	return nil
 }
