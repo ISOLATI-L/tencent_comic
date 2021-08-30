@@ -8,12 +8,12 @@ import (
 	"regexp"
 )
 
-func getChaptersUrl(cookies []*http.Cookie, id string, chaptersPattern *regexp.Regexp) (chaptersUrl []chapter, err error) {
+func getChaptersUrl(cookies []*http.Cookie, cfg config) (chaptersUrl []chapter, err error) {
 	req, err := http.NewRequest(
 		"GET",
 		fmt.Sprintf(
 			"https://ac.qq.com/Comic/comicInfo/id/%s",
-			id,
+			cfg.id,
 		),
 		nil,
 	)
@@ -60,13 +60,21 @@ func getChaptersUrl(cookies []*http.Cookie, id string, chaptersPattern *regexp.R
 	}
 	end := endl[0]
 
-	// matches := ChapterPattern.FindAllStringSubmatch(html, -1)
+	chaptersPattern, err := regexp.Compile(
+		fmt.Sprintf(
+			`<a\s+target\s*=\s*"_blank"\s+title\s*=\s*"(%s)"\s*href=`,
+			cfg.chapterPatternStr,
+		),
+	)
+	if err != nil {
+		return nil, err
+	}
 	indexes := chaptersPattern.FindAllStringIndex(html[start:end], -1)
 	// matches := chapterPattern.FindStringSubmatch(html)
 	chapterPattern, err := regexp.Compile(
 		fmt.Sprintf(
 			`"(/ComicView/index/id/%s/cid/\d*?)"`,
-			id,
+			cfg.id,
 		),
 	)
 	if err != nil {

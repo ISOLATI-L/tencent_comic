@@ -1,18 +1,15 @@
 package main
 
 import (
-	"fmt"
 	"io"
 	"log"
 	"net/http"
-	"regexp"
 )
 
-const ID string = "623654"
-
-// var ChapterPatternStr = `.*?FILE.\d+[^(href)]*?`
-
-var ChapterPatternStr = ``
+type config struct {
+	id                string
+	chapterPatternStr string
+}
 
 type chapter struct {
 	name string
@@ -20,6 +17,14 @@ type chapter struct {
 }
 
 func main() {
+	cfg := config{
+		id: "623654",
+		// chapterPatternStr: `.*?FILE.\d+[^(href)]*?`,
+		chapterPatternStr: ``,
+	}
+	if cfg.chapterPatternStr == "" {
+		cfg.chapterPatternStr = ".*?"
+	}
 	// cookies, err := Login()
 	// if err != nil {
 	// 	log.Fatalln(err.Error())
@@ -37,19 +42,7 @@ func main() {
 	// 	log.Fatalln(err.Error())
 	// }
 	// QRcodeFile.Close()
-	if ChapterPatternStr == "" {
-		ChapterPatternStr = ".*?"
-	}
-	chaptersPattern, err := regexp.Compile(
-		fmt.Sprintf(
-			`<a\s+target\s*=\s*"_blank"\s+title\s*=\s*"(%s)"`,
-			ChapterPatternStr,
-		),
-	)
-	if err != nil {
-		log.Fatalln(err.Error())
-	}
-	chaptersUrl, err := getChaptersUrl(cookies, ID, chaptersPattern)
+	chaptersUrl, err := getChaptersUrl(cookies, cfg)
 	if err != nil {
 		log.Fatalln(err.Error())
 	}

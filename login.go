@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"image"
@@ -139,11 +140,11 @@ func binaryImage(m image.Image, w int, h int) [][]bool {
 	} else {
 		dy = 1
 	}
-	result := make([][]bool, 0, w)
+	result := make([][]bool, w)
 	var wg sync.WaitGroup
 	wg.Add(w)
 	for x := 0; x < w; x++ {
-		result = append(result, make([]bool, h))
+		result[x] = make([]bool, h)
 		go func(x int) {
 			for y := 0; y < h; y++ {
 				_, g, _, _ := m.At(x*dx+(dx-1)/2, y*dy+(dy-1)/2).RGBA()
@@ -172,15 +173,15 @@ func Login() (setCookies []*http.Cookie, err error) {
 			cookies, ptqrtoken, err = ShowQRcode(cookies)
 			if err != nil {
 				break
-				// return nil, err
 			}
 			action := GetAction()
 			// log.Println("pt_login_sig: ", login_sig)
 			// log.Println("ptqrtoken: ", ptqrtoken)
 			// log.Println("action: ", action)
 			textbackground(0x04)
-			fmt.Println("请扫码登陆")
+			fmt.Print("请扫码登陆")
 			resettextbackground()
+			fmt.Println("(1分钟后刷新)")
 			var req *http.Request
 			req, err = http.NewRequest(
 				"GET",
@@ -194,52 +195,43 @@ func Login() (setCookies []*http.Cookie, err error) {
 			)
 			if err != nil {
 				break
-				// return nil, err
 			}
 			for _, cookie := range cookies {
 				req.AddCookie(cookie)
 			}
 			ch := make(chan error)
+			ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 			go func() {
 				for {
-					resp, err := client.Do(req)
-					if err != nil {
-						ch <- err
-						break
-					}
-					tmpSetCookies := resp.Cookies()
-					if len(tmpSetCookies) > 0 {
-						setCookies = tmpSetCookies
-						ch <- nil
-						break
+					select {
+					case <-ctx.Done():
+						ch <- errors.New("time out")
+						return
+					default:
+						resp, err := client.Do(req)
+						if err != nil {
+							ch <- err
+							return
+						}
+						tmpSetCookies := resp.Cookies()
+						if len(tmpSetCookies) > 0 {
+							setCookies = tmpSetCookies
+							ch <- nil
+							return
+						}
 					}
 					time.Sleep(1 * time.Second)
-					// body, err := io.ReadAll(resp.Body)
-					// if err != nil {
-					// 	return nil, err
-					// }
-					// log.Println(string(body))
 				}
 			}()
-			timeout := make(chan struct{})
-			time.AfterFunc(
-				1*time.Minute,
-				func() {
-					timeout <- struct{}{}
-				},
-			)
-			select {
-			case <-timeout:
-				continue
-			case err = <-ch:
+			err = <-ch
+			cancel()
+			if err == nil {
+				break
 			}
+		}
+		if err == nil {
 			break
 		}
-		if err != nil {
-			continue
-			// return nil, err
-		}
-		break
 	}
 	return setCookies, nil
 }
