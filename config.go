@@ -18,7 +18,7 @@ type config struct {
 const (
 	DEFAULT_ID             string = "623654"
 	DEFAULT_CHAPTERPATTERN string = ".*?"
-	DEFAULT_INTERVAL       int    = 1000
+	DEFAULT_INTERVAL       int    = 2000
 )
 
 func loadConfig() (cfg config) {

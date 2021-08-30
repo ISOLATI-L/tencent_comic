@@ -47,6 +47,7 @@ func init() {
 
 func downloadCommic(chaptersUrl []chapter) error {
 	var wg sync.WaitGroup
+	fail := make([]string, 0)
 	for _, chapterUrl := range chaptersUrl {
 		_, err := os.Stat(chapterUrl.name)
 		if err != nil {
@@ -101,11 +102,27 @@ func downloadCommic(chaptersUrl []chapter) error {
 					}
 					break
 				}
+				if err != nil {
+					suffix := ""
+					matches := suffixPattern.FindAllStringSubmatch(url, -1)
+					if len(matches) > 0 {
+						suffix = matches[len(matches)-1][1]
+					}
+					fail = append(fail, fmt.Sprintf("%s/%02d%s", title, idx, suffix))
+				}
 			}(strings.ReplaceAll(match[1], "\\", ""), chapterUrl.name, idx)
 			time.Sleep(time.Duration(CFG.interval) * time.Millisecond)
 		}
 	}
 	wg.Wait()
+	if len(fail) == 0 {
+		log.Println("全部下载完成")
+	} else {
+		log.Println("以下图片下载失败：")
+		for _, f := range fail {
+			log.Println(f)
+		}
+	}
 	return nil
 }
 
