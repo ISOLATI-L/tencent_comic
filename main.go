@@ -17,7 +17,7 @@ type chapter struct {
 }
 
 func main() {
-	cfg := loadConfig()
+	// cfg := loadConfig()
 	// chapterPatternStr: `.*?FILE.\d+[^(href)]*?`,
 
 	// cookies, err := Login()
@@ -25,6 +25,10 @@ func main() {
 	// 	log.Fatalln(err.Error())
 	// }
 	cookies := make([]*http.Cookie, 0)
+	err := downloadComic(cookies, "https://ac.qq.com/ComicView/index/id/623654/cid/1060")
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
 	// log.Println("cookies: ", cookies)
 
 	// QRcodeFile, err := os.OpenFile(
@@ -37,17 +41,18 @@ func main() {
 	// 	log.Fatalln(err.Error())
 	// }
 	// QRcodeFile.Close()
-	chaptersUrl, err := getChaptersUrl(cookies, cfg)
-	if err != nil {
-		log.Fatalln(err.Error())
-	}
-	for _, chapterUrl := range chaptersUrl {
-		log.Println(chapterUrl)
-	}
-	log.Println(len(chaptersUrl))
+
+	// chaptersUrl, err := getChaptersUrl(cookies, cfg)
+	// if err != nil {
+	// 	log.Fatalln(err.Error())
+	// }
+	// for _, chapterUrl := range chaptersUrl {
+	// 	log.Println(chapterUrl)
+	// }
+	// log.Println(len(chaptersUrl))
 
 	req, err := http.NewRequest(
-		"GET",
+		"POST",
 		"https://ac.qq.com/ComicView/index/id/623654/cid/1060",
 		nil,
 	)
@@ -58,7 +63,6 @@ func main() {
 		req.AddCookie(cookie)
 	}
 	resp, err := client.Do(req)
-	// resp, err := http.Get(url)
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
@@ -66,6 +70,5 @@ func main() {
 	if err != nil {
 		log.Fatalln(err.Error())
 	}
-	// log.Println(string(body))
 	savehtml(body)
 }
