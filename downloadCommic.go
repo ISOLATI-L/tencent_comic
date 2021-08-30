@@ -76,7 +76,7 @@ func downloadCommic(chaptersUrl []chapter) error {
 		matches := picPattern.FindAllStringSubmatch(info_str[start:end], -1)
 		wg.Add(len(matches))
 		for idx, match := range matches {
-			go func(url string, title string) {
+			go func(url string, title string, idx int) {
 				defer wg.Done()
 				// 出现错误最多尝试5次
 				for i := 0; i < 5; i++ {
@@ -101,7 +101,7 @@ func downloadCommic(chaptersUrl []chapter) error {
 					}
 					break
 				}
-			}(strings.ReplaceAll(match[1], "\\", ""), chapterUrl.name)
+			}(strings.ReplaceAll(match[1], "\\", ""), chapterUrl.name, idx)
 			time.Sleep(time.Duration(CFG.interval) * time.Millisecond)
 		}
 	}
