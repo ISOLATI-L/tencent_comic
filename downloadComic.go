@@ -163,12 +163,12 @@ func decode(data string, nonce string) (string, error) {
 		b = b<<2 | d>>4
 		d = (d&15)<<4 | f>>2
 		h = (f&3)<<6 | g
-		a += string(b)
+		a += string(rune(b))
 		if f != 64 {
-			a += string(d)
+			a += string(rune(d))
 		}
 		if g != 64 {
-			a += string(h)
+			a += string(rune(h))
 		}
 	}
 	// return tdecode(a)
@@ -183,17 +183,17 @@ func utf8_decode(c []byte) string {
 	for b < len(c) {
 		d = int(c[b])
 		if 128 > d {
-			a += string(d)
+			a += string(rune(d))
 			b++
 		} else if 191 < d && 224 > d {
 			c1 = int(c[b+1])
-			a += string((d&31)<<6 | c1&63)
+			a += string(rune((d&31)<<6 | c1&63))
 			b += 2
 
 		} else {
 			c1 = int(c[b+1])
 			c2 := int(c[b+2])
-			a += string((d&15)<<12 | (c1&63)<<6 | c2&63)
+			a += string(rune((d&15)<<12 | (c1&63)<<6 | c2&63))
 			b += 3
 		}
 	}
