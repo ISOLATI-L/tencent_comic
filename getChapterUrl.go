@@ -4,9 +4,29 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"regexp"
 )
+
+var startPattern *regexp.Regexp
+var endPattern *regexp.Regexp
+
+func init() {
+	var err error
+	startPattern, err = regexp.Compile(
+		`class\s*=\s*"chapter-page-all works-chapter-list"`,
+	)
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+	endPattern, err = regexp.Compile(
+		`class\s*=\s*"chapter-page-new works-chapter-list"`,
+	)
+	if err != nil {
+		log.Fatalln(err.Error())
+	}
+}
 
 func getChaptersUrl(cookies []*http.Cookie, cfg config) (chaptersUrl []chapter, err error) {
 	req, err := http.NewRequest(
@@ -37,23 +57,11 @@ func getChaptersUrl(cookies []*http.Cookie, cfg config) (chaptersUrl []chapter, 
 		html = string(body)
 	}
 
-	startPattern, err := regexp.Compile(
-		`class\s*=\s*"chapter-page-all works-chapter-list"`,
-	)
-	if err != nil {
-		return nil, err
-	}
 	startl := startPattern.FindStringIndex(html)
 	if len(startl) == 0 {
 		return nil, errors.New("can not find the start of chapter list")
 	}
 	start := startl[0]
-	endPattern, err := regexp.Compile(
-		`class\s*=\s*"chapter-page-new works-chapter-list"`,
-	)
-	if err != nil {
-		return nil, err
-	}
 	endl := endPattern.FindStringIndex(html)
 	if len(endl) == 0 {
 		return nil, errors.New("can not find the end of chapter list")
@@ -63,7 +71,7 @@ func getChaptersUrl(cookies []*http.Cookie, cfg config) (chaptersUrl []chapter, 
 	chaptersPattern, err := regexp.Compile(
 		fmt.Sprintf(
 			`<a\s+target\s*=\s*"_blank"\s+title\s*=\s*"(%s)"\s*href=`,
-			cfg.chapterPatternStr,
+			cfg.chapterPattern,
 		),
 	)
 	if err != nil {

@@ -7,8 +7,8 @@ import (
 )
 
 type config struct {
-	id                string
-	chapterPatternStr string
+	id             string
+	chapterPattern string
 }
 
 type chapter struct {
@@ -17,14 +17,9 @@ type chapter struct {
 }
 
 func main() {
-	cfg := config{
-		id: "623654",
-		// chapterPatternStr: `.*?FILE.\d+[^(href)]*?`,
-		chapterPatternStr: ``,
-	}
-	if cfg.chapterPatternStr == "" {
-		cfg.chapterPatternStr = ".*?"
-	}
+	cfg := loadConfig()
+	// chapterPatternStr: `.*?FILE.\d+[^(href)]*?`,
+
 	// cookies, err := Login()
 	// if err != nil {
 	// 	log.Fatalln(err.Error())
